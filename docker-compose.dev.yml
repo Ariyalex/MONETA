@@ -1,0 +1,45 @@
+# Pakai: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Hot-reload untuk frontend (Vite), backend (nodemon), ai-service (uvicorn --reload).
+services:
+  nginx:
+    profiles: ["prod-only"] # tidak dijalankan saat dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_PROXY_TARGET: http://backend:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on: [backend]
+    networks: [moneta-net]
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./monitoring/targets:/app/targets
+
+  ai-service:
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service:/app
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  postgres:
+    ports:
+      - "5432:5432"

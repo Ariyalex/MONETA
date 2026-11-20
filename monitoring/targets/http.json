@@ -1,0 +1,3 @@
+[
+  { "targets": ["https://example.com"], "labels": { "target_id": "1", "name": "Example" } }
+]

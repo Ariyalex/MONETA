@@ -29,7 +29,7 @@ COPY . .
 CMD ["npx", "prisma", "migrate", "deploy", "--config", "prisma7.config.ts"]
 
 # production dependency
-FROM base as prod-deps
+FROM base AS prod-deps
 ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev

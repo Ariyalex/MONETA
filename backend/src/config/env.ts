@@ -11,7 +11,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   FRONTEND_ORIGIN: z.url().default("http://localhost:80"),
   AI_SERVICE_URL: z.url(),
-  TARGET_DIR: z.string().min(1).default("/app/targets"),
+  TARGETS_DIR: z.string().min(1).default("/app/targets"),
 });
 
 export const env = envSchema.parse(process.env);

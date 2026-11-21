@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProbeType {
+  ICMP
+  HTTP
+  HTTPS
+  TCP
+}
+
+enum SeverityType {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  IGNORED
+}
+
+enum IncidentEventType {
+  STATUS_CHANGED
+  NOTE_ADDED
+  NOTE_CHANGED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  monitoringTargets MonitoringTarget[]
+  incidentEvents    IncidentEvent[]
+
+  @@map("users")
+}
+
+model MonitoringTarget {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String    @db.VarChar(100)
+  address         String    @db.VarChar(255)
+  description     String?   @db.Text
+  probeType       ProbeType @map("probe_type")
+  intervalSeconds Int       @map("interval_seconds")
+  timeoutSeconds  Int       @map("timeout_seconds")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdBy       String    @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  incidents        Incident[]
+  detectionResults DetectionResult[]
+
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([createdBy])
+  @@map("monitoring_targets")
+}
+
+model Incident {
+  id             String         @id @default(uuid()) @db.Uuid
+  targetId       String         @map("target_id") @db.Uuid
+  title          String         @db.VarChar(100)
+  description    String?        @db.Text
+  incidentType   String         @map("incident_type") @db.VarChar(250)
+  severity       SeverityType
+  status         IncidentStatus
+  fingerprint    String         @db.VarChar(500)
+  firstSeenAt    DateTime       @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt     DateTime?      @map("last_seen_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?      @map("resolved_at") @db.Timestamptz(6)
+  detectionCount Int            @map("detection_count")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  detectionResults DetectionResult[]
+  incidentEvents   IncidentEvent[]
+
+  target MonitoringTarget @relation(fields: [targetId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([fingerprint])
+  @@index([fingerprint])
+  @@index([targetId])
+  @@map("incidents")
+}
+
+model DetectionResult {
+  id           String   @id @default(uuid()) @db.Uuid
+  targetId     String   @map("target_id") @db.Uuid
+  incidentId   String?  @map("incident_id") @db.Uuid
+  modelName    String   @map("model_name")
+  modelVersion String   @map("model_version")
+  isAnomaly    Boolean  @default(false) @map("is_anomaly")
+  anomalyScore Float?   @map("anomaly_score")
+  features     Json     @db.JsonB
+  windowStart  DateTime @map("window_start") @db.Timestamptz(6)
+  windowEnd    DateTime @map("window_end") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  target   MonitoringTarget @relation(fields: [targetId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  incident Incident?        @relation(fields: [incidentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([targetId])
+  @@index([incidentId])
+  @@map("detection_results")
+}
+
+model IncidentEvent {
+  id         String            @id @default(uuid()) @db.Uuid
+  incidentId String            @map("incident_id") @db.Uuid
+  actorId    String?           @map("actor_id") @db.Uuid
+  eventType  IncidentEventType @map("event_type")
+  oldStatus  IncidentStatus?   @map("old_status")
+  newStatus  IncidentStatus?   @map("new_status")
+  note       String?           @db.Text
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor    User?    @relation(fields: [actorId], references: [id])
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([incidentId])
+  @@index([actorId])
+  @@map("incident_events")
+}
